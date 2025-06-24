@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "AI-Powered Image Scraper & Prompt Generator",
+  "version": "1.0",
+  "description": "Scrape images from any website and generate creative prompts with AI.",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "contextMenus",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "action": {
+    "default_title": "Open Sidebar",
+    "default_icon": {
+      "16": "images/scraper.png",
+      "48": "images/scraper.png",
+      "128": "images/scraper.png"
+    }
+  },
+  "icons": {
+    "16": "images/scraper.png",
+    "48": "images/scraper.png",
+    "128": "images/scraper.png"
+  }
+}
