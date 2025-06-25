@@ -1,22 +1,33 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 document.addEventListener('DOMContentLoaded', () => {
-  const darkModeToggle = document.getElementById('darkModeToggle') as HTMLInputElement;
-  const body = document.body;
-  const menuItems = document.querySelectorAll('.menu-item');
-  const views = document.querySelectorAll('.view');
-  const settingsForm = document.getElementById('settings-form') as HTMLFormElement;
-  const aiModelSelect = document.getElementById('ai-model') as HTMLSelectElement;
-  const apiKeyInput = document.getElementById('api-key') as HTMLInputElement;
-  const customPromptTextarea = document.getElementById('custom-prompt') as HTMLTextAreaElement;
-  const scrapeButton = document.getElementById('scrape-button') as HTMLButtonElement;
-  const stopButton = document.getElementById('stop-button') as HTMLButtonElement;
-  const resultsList = document.getElementById('results-list');
-  const progressContainer = document.getElementById('progress-container');
-  const progressBar = document.getElementById('progress-bar');
-  const usageContainer = document.getElementById('usage-container');
-  const tokenCountSpan = document.getElementById('token-count');
-  const costEstimateSpan = document.getElementById('cost-estimate');
+  
+  function getElement<T extends HTMLElement>(id: string): T {
+    const element = document.getElementById(id);
+    if (!element) {
+      throw new Error(`Element with id "${id}" not found. Check your HTML.`);
+    }
+    return element as T;
+  }
+
+  const ui = {
+    body: document.body,
+    darkModeToggle: getElement<HTMLInputElement>('darkModeToggle'),
+    menuItems: document.querySelectorAll('.menu-item'),
+    views: document.querySelectorAll('.view'),
+    settingsForm: getElement<HTMLFormElement>('settings-form'),
+    aiModelSelect: getElement<HTMLSelectElement>('ai-model'),
+    apiKeyInput: getElement<HTMLInputElement>('api-key'),
+    customPromptTextarea: getElement<HTMLTextAreaElement>('custom-prompt'),
+    scrapeButton: getElement<HTMLButtonElement>('scrape-button'),
+    stopButton: getElement<HTMLButtonElement>('stop-button'),
+    resultsList: getElement<HTMLElement>('results-list'),
+    progressContainer: getElement<HTMLElement>('progress-container'),
+    progressBar: getElement<HTMLElement>('progress-bar'),
+    usageContainer: getElement<HTMLElement>('usage-container'),
+    tokenCountSpan: getElement<HTMLElement>('token-count'),
+    costEstimateSpan: getElement<HTMLElement>('cost-estimate'),
+  };
 
   let imageQueue: { src: string; base64: string; mimeType: string }[] = [];
   let totalImages = 0;
@@ -34,36 +45,36 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load saved dark mode state and API key
   chrome.storage.sync.get(['darkMode', 'aiModel', 'apiKey', 'customPrompt'], (data) => {
     if (data.darkMode) {
-      body.classList.add('dark-mode');
-      darkModeToggle.checked = true;
+      ui.body.classList.add('dark-mode');
+      ui.darkModeToggle.checked = true;
     }
     if (data.aiModel) {
-      aiModelSelect.value = data.aiModel;
+      ui.aiModelSelect.value = data.aiModel;
     }
     if (data.apiKey) {
-      apiKeyInput.value = data.apiKey;
+      ui.apiKeyInput.value = data.apiKey;
       genAI = new GoogleGenerativeAI(data.apiKey);
     }
     if (data.customPrompt) {
-      customPromptTextarea.value = data.customPrompt;
+      ui.customPromptTextarea.value = data.customPrompt;
     }
   });
 
   // Toggle dark mode
-  darkModeToggle.addEventListener('change', () => {
-    body.classList.toggle('dark-mode');
-    chrome.storage.sync.set({ darkMode: darkModeToggle.checked });
+  ui.darkModeToggle.addEventListener('change', () => {
+    ui.body.classList.toggle('dark-mode');
+    chrome.storage.sync.set({ darkMode: ui.darkModeToggle.checked });
   });
 
   // Menu item active state and view switching
-  menuItems.forEach(item => {
+  ui.menuItems.forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
-      menuItems.forEach(i => i.classList.remove('active'));
+      ui.menuItems.forEach(i => i.classList.remove('active'));
       item.classList.add('active');
 
       const viewName = (item as HTMLElement).dataset.view;
-      views.forEach(view => {
+      ui.views.forEach(view => {
         if (view.id === `${viewName}-view`) {
           view.classList.remove('hidden');
         } else {
@@ -80,11 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Save settings
-  settingsForm.addEventListener('submit', (e) => {
+  ui.settingsForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const aiModel = aiModelSelect.value;
-    const apiKey = apiKeyInput.value;
-    const customPrompt = customPromptTextarea.value;
+    const aiModel = ui.aiModelSelect.value;
+    const apiKey = ui.apiKeyInput.value;
+    const customPrompt = ui.customPromptTextarea.value;
     chrome.storage.sync.set({ aiModel, apiKey, customPrompt }, () => {
       if (apiKey) {
         genAI = new GoogleGenerativeAI(apiKey);
@@ -94,24 +105,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Scrape images
-  scrapeButton?.addEventListener('click', () => {
+  ui.scrapeButton.addEventListener('click', () => {
     if (!genAI) {
       alert('Please set your API key in the settings.');
       return;
     }
-    scrapeButton.classList.add('hidden');
-    stopButton.classList.remove('hidden');
-    if (resultsList) {
-      resultsList.innerHTML = '';
+    ui.scrapeButton.classList.add('hidden');
+    ui.stopButton.classList.remove('hidden');
+    if (ui.resultsList) {
+      ui.resultsList.innerHTML = '';
     }
-    if (usageContainer) {
-      usageContainer.classList.remove('hidden');
+    if (ui.usageContainer) {
+      ui.usageContainer.classList.remove('hidden');
     }
     totalTokens = 0;
     estimatedCost = 0;
-    if (progressContainer && progressBar) {
-      progressContainer.classList.remove('hidden');
-      progressBar.style.width = '0%';
+    if (ui.progressContainer && ui.progressBar) {
+      ui.progressContainer.classList.remove('hidden');
+      ui.progressBar.style.width = '0%';
     }
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
@@ -134,13 +145,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  stopButton.addEventListener('click', () => {
+  ui.stopButton.addEventListener('click', () => {
     imageQueue = [];
     isQueueProcessing = false;
-    scrapeButton.classList.remove('hidden');
-    stopButton.classList.add('hidden');
-    if (progressContainer) {
-      progressContainer.classList.add('hidden');
+    ui.scrapeButton.classList.remove('hidden');
+    ui.stopButton.classList.add('hidden');
+    if (ui.progressContainer) {
+      ui.progressContainer.classList.add('hidden');
     }
   });
 
@@ -148,11 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
     isQueueProcessing = true;
     if (imageQueue.length === 0) {
       isQueueProcessing = false;
-      scrapeButton.classList.remove('hidden');
-      stopButton.classList.add('hidden');
-      if (progressContainer) {
+      ui.scrapeButton.classList.remove('hidden');
+      ui.stopButton.classList.add('hidden');
+      if (ui.progressContainer) {
         setTimeout(() => {
-          progressContainer.classList.add('hidden');
+          ui.progressContainer.classList.add('hidden');
         }, 500);
       }
       return;
@@ -160,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const image = imageQueue.shift();
     if (image) {
-      const modelName = aiModelSelect.value;
+      const modelName = ui.aiModelSelect.value;
       const result = await generatePrompt(image, modelName);
       if (result) {
         displayResult(image.src, result.prompt);
@@ -169,17 +180,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pricing) {
           estimatedCost += (result.tokens / 1000) * pricing.output; // Assuming output tokens for now
         }
-        if (tokenCountSpan && costEstimateSpan) {
-          tokenCountSpan.textContent = totalTokens.toString();
-          costEstimateSpan.textContent = estimatedCost.toFixed(6);
+        if (ui.tokenCountSpan && ui.costEstimateSpan) {
+          ui.tokenCountSpan.textContent = totalTokens.toString();
+          ui.costEstimateSpan.textContent = estimatedCost.toFixed(6);
         }
       }
     }
 
-    if (progressBar) {
+    if (ui.progressBar) {
       const processedCount = totalImages - imageQueue.length;
       const progress = (processedCount / totalImages) * 100;
-      progressBar.style.width = `${progress}%`;
+      ui.progressBar.style.width = `${progress}%`;
     }
 
     if (isQueueProcessing) {
@@ -193,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
-      const customPrompt = customPromptTextarea.value || 'Generate a text-to-image AI prompt that can recreate it accurately.';
+      const customPrompt = ui.customPromptTextarea.value || 'Generate a text-to-image AI prompt that can recreate it accurately.';
 
       const imagePart = {
         inlineData: {
@@ -213,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function displayResult(imageUrl: string, prompt: string) {
-    if (resultsList) {
+    if (ui.resultsList) {
       const resultItem = document.createElement('div');
       resultItem.className = 'result-item';
 
@@ -225,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       resultItem.appendChild(img);
       resultItem.appendChild(p);
-      resultsList.appendChild(resultItem);
+      ui.resultsList.appendChild(resultItem);
     }
   }
 });
