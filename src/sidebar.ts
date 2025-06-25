@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aiModelSelect: getElement<HTMLSelectElement>('ai-model'),
     apiKeyInput: getElement<HTMLInputElement>('api-key'),
     customPromptTextarea: getElement<HTMLTextAreaElement>('custom-prompt'),
+    defaultToolSelect: getElement<HTMLSelectElement>('default-tool'),
     scrapeButton: getElement<HTMLButtonElement>('scrape-button'),
     stopButton: getElement<HTMLButtonElement>('stop-button'),
     resultsList: getElement<HTMLElement>('results-list'),
@@ -179,13 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 1. Filter local tabs by title (simple search)
     const localResults = allTabsCache.filter(tab => 
       tab.title?.toLowerCase().includes(query.toLowerCase())
     );
     renderTabs(localResults);
 
-    // 2. Fetch web suggestions from AI
     try {
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const prompt = `Based on the search query "${query}", suggest the top 3 most relevant websites. For each, provide a title and a valid URL. Format the output as a JSON array of objects, where each object has "title" and "url" keys.`;
@@ -293,9 +292,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function setActiveView(viewName: string) {
+    ui.views.forEach(view => {
+      view.id === `${viewName}-view` ? view.classList.remove('hidden') : view.classList.add('hidden');
+    });
+
+    ui.menuItems.forEach(i => i.classList.remove('active'));
+    const newActiveItem = document.querySelector(`.menu-item[data-view="${viewName}"]`);
+    if (newActiveItem) {
+      newActiveItem.classList.add('active');
+      const parentDropdown = newActiveItem.closest('.dropdown');
+      if (parentDropdown) {
+        parentDropdown.querySelector('.menu-item')?.classList.add('active');
+      }
+    }
+
+    if (viewName === 'tabs') {
+      chrome.tabs.query({}, (tabs) => {
+        allTabsCache = tabs;
+        renderTabs();
+      });
+    }
+  }
+
   // --- INITIALIZATION & EVENT LISTENERS ---
 
-  chrome.storage.sync.get(['darkMode', 'aiModel', 'apiKey', 'customPrompt'], (data) => {
+  chrome.storage.sync.get(['darkMode', 'aiModel', 'apiKey', 'customPrompt', 'defaultTool'], (data) => {
     if (data.darkMode) {
       ui.body.classList.add('dark-mode');
       ui.darkModeToggle.checked = true;
@@ -306,6 +328,13 @@ document.addEventListener('DOMContentLoaded', () => {
       genAI = new GoogleGenerativeAI(data.apiKey);
     }
     if (data.customPrompt) ui.customPromptTextarea.value = data.customPrompt;
+    if (data.defaultTool) {
+      ui.defaultToolSelect.value = data.defaultTool;
+      setActiveView(data.defaultTool);
+    } else {
+      // Default to Tab Manager on first install
+      setActiveView('tabs');
+    }
   });
 
   ui.darkModeToggle.addEventListener('change', () => {
@@ -321,25 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       const viewName = (item as HTMLElement).dataset.view;
-      if (!viewName) return;
-
-      ui.menuItems.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-      const parentDropdown = item.closest('.dropdown');
-      if (parentDropdown) {
-        parentDropdown.querySelector('.menu-item')?.classList.add('active');
-      }
-
-      ui.views.forEach(view => {
-        view.id === `${viewName}-view` ? view.classList.remove('hidden') : view.classList.add('hidden');
-      });
-
-      if (viewName === 'tabs') {
-        chrome.tabs.query({}, (tabs) => {
-          allTabsCache = tabs;
-          renderTabs();
-        });
-      }
+      if (viewName) setActiveView(viewName);
     });
   });
 
@@ -348,7 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiModel = ui.aiModelSelect.value;
     const apiKey = ui.apiKeyInput.value;
     const customPrompt = ui.customPromptTextarea.value;
-    chrome.storage.sync.set({ aiModel, apiKey, customPrompt }, () => {
+    const defaultTool = ui.defaultToolSelect.value;
+    chrome.storage.sync.set({ aiModel, apiKey, customPrompt, defaultTool }, () => {
       if (apiKey) genAI = new GoogleGenerativeAI(apiKey);
       alert('Settings saved!');
     });

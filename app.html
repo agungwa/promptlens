@@ -71,6 +71,13 @@
             </select>
           </div>
           <div class="form-group">
+            <label for="default-tool">Default Tool on Startup</label>
+            <select id="default-tool" name="default-tool">
+              <option value="tabs">Tab Manager</option>
+              <option value="features">Image Scraper</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label for="api-key">API Key</label>
             <input type="password" id="api-key" name="api-key" placeholder="Enter your API key">
           </div>
@@ -82,9 +89,18 @@
         </form>
       </div>
       <div id="about-view" class="view hidden">
-        <h1>About AI-Powered Image Scraper</h1>
-        <p>This extension allows you to scrape images from any website and use powerful AI models to generate creative prompts for ad campaigns, social media posts, and more.</p>
-        <p>Simply go to the "Features" tab, click "Scrape Images," and let the AI do the work!</p>
+        <h1>About PromptLens</h1>
+        <p>PromptLens is an AI-powered assistant designed to enhance your browsing experience and boost your creativity and productivity.</p>
+        
+        <h2>Core Features:</h2>
+        <ul>
+          <li><strong>Image Scraper:</strong> Analyze any image on the web and generate a detailed text-to-image prompt to help you understand its artistic style. Use custom templates to create prompts for ad campaigns, social media posts, and more.</li>
+          <li><strong>Smart Tab Manager:</strong> Organize your open tabs with ease. Tabs are automatically grouped by domain, and you can expand, collapse, or close them directly from the sidebar.</li>
+          <li><strong>AI Tab Summaries:</strong> Instantly get a concise, AI-generated summary of any open tab's content by clicking the ✨ icon.</li>
+          <li><strong>"Find or Fetch" Search:</strong> Use the powerful semantic search to find what you're looking for. It searches through your open tabs first, and if it can't find a match, it suggests relevant new websites to explore.</li>
+        </ul>
+
+        <p>This extension is open-source. For installation instructions, to report issues, or to contribute, please visit the official GitHub repository.</p>
       </div>
     </main>
   </div>
