@@ -6,11 +6,11 @@
     "build": "webpack --config webpack.config.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.1.3"
+    "@google/generative-ai": "^0.1.3",
+    "copy-webpack-plugin": "^13.0.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.243",
-    "copy-webpack-plugin": "^13.0.0",
     "ts-loader": "^9.4.4",
     "typescript": "^5.2.2",
     "webpack": "^5.88.2",
