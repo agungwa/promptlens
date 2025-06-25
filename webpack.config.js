@@ -1,5 +1,4 @@
 const path = require('path');
-const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
@@ -24,16 +23,4 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
   },
   mode: 'production',
-  plugins: [
-    new CopyPlugin({
-      patterns: [
-        { from: 'sidebar.html', to: 'sidebar.html' },
-        { from: 'app.html', to: 'app.html' },
-        { from: 'style.css', to: 'style.css' },
-        { from: 'tab-manager.css', to: 'tab-manager.css' },
-        { from: 'images', to: 'images' },
-        { from: 'manifest.json', to: 'manifest.json' },
-      ],
-    }),
-  ],
 };
