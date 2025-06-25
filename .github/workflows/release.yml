@@ -27,13 +27,7 @@ jobs:
 
       - name: Package extension
         run: |
-          mkdir -p release
-          cp manifest.json release/
-          cp sidebar.html release/
-          cp style.css release/
-          cp -r dist release/
-          cp -r images release/
-          cd release
+          cd dist
           zip -r ../extension.zip .
 
       - name: Create GitHub Release
