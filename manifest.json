@@ -8,7 +8,8 @@
     "storage",
     "contextMenus",
     "scripting",
-    "tabs"
+    "tabs",
+    "activeTab"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -31,5 +32,11 @@
     "16": "images/scraper.png",
     "48": "images/scraper.png",
     "128": "images/scraper.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [ "app.html" ],
+      "matches": [ "<all_urls>" ]
+    }
+  ]
 }
