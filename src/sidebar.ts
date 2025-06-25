@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     expandAllBtn: getElement<HTMLButtonElement>('expand-all-btn'),
     collapseAllBtn: getElement<HTMLButtonElement>('collapse-all-btn'),
     summaryPopover: getElement<HTMLElement>('summary-popover'),
+    tabSearchInput: getElement<HTMLInputElement>('tab-search-input'),
   };
 
   // --- STATE ---
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let estimatedCost = 0;
   let isQueueProcessing = false;
   let genAI: GoogleGenerativeAI | null = null;
+  let allTabsCache: chrome.tabs.Tab[] = [];
 
   const modelPricing: { [key: string]: { input: number, output: number } } = {
     'gemini-1.5-flash': { input: 0.0000025, output: 0.0000075 },
@@ -99,68 +101,128 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderTabs() {
-    chrome.tabs.query({}, (tabs) => {
-      const groupedTabs: { [domain: string]: chrome.tabs.Tab[] } = {};
-      const tabDataMap = new Map<string, chrome.tabs.Tab>();
+  function renderTabs(tabsToRender?: chrome.tabs.Tab[]) {
+    const tabs = tabsToRender || allTabsCache;
+    const groupedTabs: { [domain: string]: chrome.tabs.Tab[] } = {};
+    const tabDataMap = new Map<string, chrome.tabs.Tab>();
 
-      tabs.forEach(tab => {
-        if (tab.url && tab.id) {
-          try {
-            const domain = new URL(tab.url).hostname;
-            if (!groupedTabs[domain]) groupedTabs[domain] = [];
-            groupedTabs[domain].push(tab);
-            tabDataMap.set(tab.id.toString(), tab);
-          } catch (error) {
-            console.warn(`Could not parse URL for tab: ${tab.url}`, error);
-          }
+    tabs.forEach(tab => {
+      if (tab.url && tab.id) {
+        try {
+          const domain = new URL(tab.url).hostname;
+          if (!groupedTabs[domain]) groupedTabs[domain] = [];
+          groupedTabs[domain].push(tab);
+          tabDataMap.set(tab.id.toString(), tab);
+        } catch (error) {
+          console.warn(`Could not parse URL for tab: ${tab.url}`, error);
         }
+      }
+    });
+
+    ui.tabGroupsContainer.innerHTML = '';
+
+    if (tabs.length === 0 && ui.tabSearchInput.value) {
+      ui.tabGroupsContainer.innerHTML = '<p>No open tabs match your search.</p>';
+    }
+
+    for (const domain in groupedTabs) {
+      const group = groupedTabs[domain];
+      const groupElement = document.createElement('div');
+      groupElement.className = 'tab-group collapsed';
+
+      const header = document.createElement('div');
+      header.className = 'tab-group-header';
+      header.innerHTML = `
+        <img class="favicon" src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" />
+        <span>${domain}</span>
+        <span class="tab-group-arrow">&#9660;</span>
+      `;
+      header.addEventListener('click', () => groupElement.classList.toggle('collapsed'));
+      
+      const tabList = document.createElement('ul');
+      tabList.className = 'tab-list';
+
+      group.forEach(tab => {
+        if (!tab.id) return;
+        const tabId = tab.id.toString();
+        const tabItem = document.createElement('li');
+        tabItem.className = 'tab-item';
+        tabItem.dataset.tabId = tabId;
+        
+        tabItem.innerHTML = `
+          <div class="tab-link">
+            <img class="favicon" src="${tab.favIconUrl || `https://www.google.com/s2/favicons?domain=${domain}&sz=16`}" />
+            <span class="tab-item-title">${tab.title || 'Untitled Tab'}</span>
+          </div>
+          <button class="ai-summary-button" data-tab-id="${tabId}">✨</button>
+          <button class="close-tab-button" data-tab-id="${tabId}">&times;</button>
+        `;
+        tabList.appendChild(tabItem);
       });
 
-      ui.tabGroupsContainer.innerHTML = '';
+      groupElement.appendChild(header);
+      groupElement.appendChild(tabList);
+      ui.tabGroupsContainer.appendChild(groupElement);
+    }
+    
+    (ui.tabGroupsContainer as any)._tabDataMap = tabDataMap;
+  }
 
-      for (const domain in groupedTabs) {
-        const group = groupedTabs[domain];
-        const groupElement = document.createElement('div');
-        groupElement.className = 'tab-group collapsed';
+  async function performSearch(query: string) {
+    if (!query) {
+      renderTabs();
+      return;
+    }
 
-        const header = document.createElement('div');
-        header.className = 'tab-group-header';
-        header.innerHTML = `
-          <img class="favicon" src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" />
-          <span>${domain}</span>
-          <span class="tab-group-arrow">&#9660;</span>
-        `;
-        header.addEventListener('click', () => groupElement.classList.toggle('collapsed'));
-        
-        const tabList = document.createElement('ul');
-        tabList.className = 'tab-list';
+    if (!genAI) {
+      alert('Please set your API key in the settings.');
+      return;
+    }
 
-        group.forEach(tab => {
-          if (!tab.id) return;
-          const tabId = tab.id.toString();
+    // 1. Filter local tabs by title (simple search)
+    const localResults = allTabsCache.filter(tab => 
+      tab.title?.toLowerCase().includes(query.toLowerCase())
+    );
+    renderTabs(localResults);
+
+    // 2. Fetch web suggestions from AI
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const prompt = `Based on the search query "${query}", suggest the top 3 most relevant websites. For each, provide a title and a valid URL. Format the output as a JSON array of objects, where each object has "title" and "url" keys.`;
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text().replace(/```json|```/g, '').trim();
+      const suggestions = JSON.parse(responseText);
+
+      if (suggestions && suggestions.length > 0) {
+        const suggestionsTitle = document.createElement('h3');
+        suggestionsTitle.className = 'search-results-title';
+        suggestionsTitle.textContent = 'Top Web Suggestions';
+        ui.tabGroupsContainer.appendChild(suggestionsTitle);
+
+        const webResultsList = document.createElement('ul');
+        webResultsList.className = 'tab-list';
+
+        suggestions.forEach((site: { title: string, url: string }) => {
           const tabItem = document.createElement('li');
           tabItem.className = 'tab-item';
-          tabItem.dataset.tabId = tabId;
+          const domain = new URL(site.url).hostname;
           
           tabItem.innerHTML = `
             <div class="tab-link">
-              <img class="favicon" src="${tab.favIconUrl || `https://www.google.com/s2/favicons?domain=${domain}&sz=16`}" />
-              <span class="tab-item-title">${tab.title || 'Untitled Tab'}</span>
+              <img class="favicon" src="https://www.google.com/s2/favicons?domain=${domain}&sz=16" />
+              <span class="tab-item-title">${site.title}</span>
             </div>
-            <button class="ai-summary-button" data-tab-id="${tabId}">✨</button>
-            <button class="close-tab-button" data-tab-id="${tabId}">&times;</button>
           `;
-          tabList.appendChild(tabItem);
+          tabItem.addEventListener('click', () => {
+            chrome.tabs.create({ url: site.url });
+          });
+          webResultsList.appendChild(tabItem);
         });
-
-        groupElement.appendChild(header);
-        groupElement.appendChild(tabList);
-        ui.tabGroupsContainer.appendChild(groupElement);
+        ui.tabGroupsContainer.appendChild(webResultsList);
       }
-      
-      (ui.tabGroupsContainer as any)._tabDataMap = tabDataMap;
-    });
+    } catch (error) {
+      console.error("Error fetching web suggestions:", error);
+    }
   }
 
   async function processQueue() {
@@ -272,7 +334,12 @@ document.addEventListener('DOMContentLoaded', () => {
         view.id === `${viewName}-view` ? view.classList.remove('hidden') : view.classList.add('hidden');
       });
 
-      if (viewName === 'tabs') renderTabs();
+      if (viewName === 'tabs') {
+        chrome.tabs.query({}, (tabs) => {
+          allTabsCache = tabs;
+          renderTabs();
+        });
+      }
     });
   });
 
@@ -361,11 +428,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  chrome.tabs.onCreated.addListener(() => { if (isTabsViewActive()) renderTabs(); });
-  chrome.tabs.onRemoved.addListener(() => { if (isTabsViewActive()) renderTabs(); });
+  let searchTimeout: number;
+  ui.tabSearchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = window.setTimeout(() => {
+      performSearch(ui.tabSearchInput.value);
+    }, 300); // Debounce search
+  });
+
+  function refreshTabs() {
+    if (isTabsViewActive()) {
+      chrome.tabs.query({}, (tabs) => {
+        allTabsCache = tabs;
+        renderTabs();
+      });
+    }
+  }
+
+  chrome.tabs.onCreated.addListener(refreshTabs);
+  chrome.tabs.onRemoved.addListener(refreshTabs);
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.url || changeInfo.title) {
-      if (isTabsViewActive()) renderTabs();
+      refreshTabs();
     }
   });
 });

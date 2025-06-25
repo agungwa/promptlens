@@ -25,6 +25,33 @@ body.dark-mode .control-btn {
   color: #c9d1d9;
 }
 
+.search-container {
+  margin-bottom: 1rem;
+}
+
+#tab-search-input {
+  width: calc(100% - 20px);
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1em;
+}
+
+body.dark-mode #tab-search-input {
+  background-color: #333;
+  border-color: #444;
+  color: #c9d1d9;
+}
+
+.search-results-title {
+  font-size: 0.8em;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #888;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
 .tab-group {
   margin-bottom: 1rem;
   border: 1px solid #ccc;
