@@ -74,6 +74,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const images = await scrapeImages();
       sendResponse(images);
     }, 500);
-    return true;
+    return true; // Indicates that the response is sent asynchronously
   }
 });

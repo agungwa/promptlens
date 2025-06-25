@@ -47,7 +47,13 @@
         <div id="results-list"></div>
       </div>
       <div id="tabs-view" class="view hidden">
-        <h1>Tab Manager</h1>
+        <div class="view-header">
+          <h1>Tab Manager</h1>
+          <div class="tab-controls">
+            <button id="expand-all-btn" class="control-btn">Expand All</button>
+            <button id="collapse-all-btn" class="control-btn">Collapse All</button>
+          </div>
+        </div>
         <div id="tab-groups-container"></div>
       </div>
       <div id="settings-view" class="view hidden">
@@ -79,6 +85,7 @@
       </div>
     </main>
   </div>
+  <div id="summary-popover" class="hidden"></div>
   <script src="dist/sidebar.js"></script>
 </body>
 </html>
