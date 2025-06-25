@@ -25,6 +25,9 @@ jobs:
       - name: Build extension
         run: npm run build
 
+      - name: List files in dist
+        run: ls -R dist
+
       - name: Package extension
         run: |
           cd dist
