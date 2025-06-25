@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptLens</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="tab-manager.css">
+</head>
+<body>
+  <header class="top-nav">
+    <div class="logo">
+      <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+    </div>
+    <nav class="menu">
+      <div class="dropdown">
+        <a href="#" class="menu-item" id="tools-menu">Tools</a>
+        <div class="dropdown-content">
+          <a href="#" class="menu-item active" data-view="features">Image Scraper</a>
+          <a href="#" class="menu-item" data-view="tabs">Tab Manager</a>
+        </div>
+      </div>
+      <a href="#" class="menu-item" data-view="settings">Settings</a>
+      <a href="#" class="menu-item" data-view="about">About</a>
+    </nav>
+    <div class="top-nav-footer">
+      <label class="switch">
+        <input type="checkbox" id="darkModeToggle">
+        <span class="slider round"></span>
+      </label>
+    </div>
+  </header>
+
+  <div class="container">
+    <main class="content">
+      <div id="features-view" class="view">
+        <h1>Image Scraper</h1>
+        <p>Click the button to scrape all images from the current page and generate a prompt.</p>
+        <button id="scrape-button">Scrape Images</button>
+        <button id="stop-button" class="hidden">Stop</button>
+        <div id="usage-container" class="hidden">
+          <p><strong>Tokens:</strong> <span id="token-count">0</span> | <strong>Cost Estimate:</strong> $<span id="cost-estimate">0.000000</span></p>
+        </div>
+        <div id="progress-container" class="hidden">
+          <div id="progress-bar"></div>
+        </div>
+        <div id="results-list"></div>
+      </div>
+      <div id="tabs-view" class="view hidden">
+        <h1>Tab Manager</h1>
+        <div id="tab-groups-container"></div>
+      </div>
+      <div id="settings-view" class="view hidden">
+        <h1>Settings</h1>
+        <form id="settings-form">
+          <div class="form-group">
+            <label for="ai-model">AI Model</label>
+            <select id="ai-model" name="ai-model">
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              <option value="gemini-1.5-pro" selected>Gemini 1.5 Pro</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="api-key">API Key</label>
+            <input type="password" id="api-key" name="api-key" placeholder="Enter your API key">
+          </div>
+          <div class="form-group">
+            <label for="custom-prompt">Custom Prompt</label>
+            <textarea id="custom-prompt" name="custom-prompt" rows="4" placeholder="Enter your custom prompt here. The selected image will be automatically included."></textarea>
+          </div>
+          <button type="submit">Save Settings</button>
+        </form>
+      </div>
+      <div id="about-view" class="view hidden">
+        <h1>About AI-Powered Image Scraper</h1>
+        <p>This extension allows you to scrape images from any website and use powerful AI models to generate creative prompts for ad campaigns, social media posts, and more.</p>
+        <p>Simply go to the "Features" tab, click "Scrape Images," and let the AI do the work!</p>
+      </div>
+    </main>
+  </div>
+  <script src="dist/sidebar.js"></script>
+</body>
+</html>

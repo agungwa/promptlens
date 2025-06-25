@@ -31,5 +31,11 @@
     "16": "images/scraper.png",
     "48": "images/scraper.png",
     "128": "images/scraper.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [ "app.html" ],
+      "matches": [ "<all_urls>" ]
+    }
+  ]
 }

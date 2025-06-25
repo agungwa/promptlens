@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     usageContainer: getElement<HTMLElement>('usage-container'),
     tokenCountSpan: getElement<HTMLElement>('token-count'),
     costEstimateSpan: getElement<HTMLElement>('cost-estimate'),
+    tabGroupsContainer: getElement<HTMLElement>('tab-groups-container'),
   };
 
   let imageQueue: { src: string; base64: string; mimeType: string }[] = [];
@@ -67,13 +68,31 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Menu item active state and view switching
-  ui.menuItems.forEach(item => {
+  const allMenuItems = document.querySelectorAll('.menu-item');
+  allMenuItems.forEach(item => {
+    if (item.id === 'tools-menu') {
+      item.addEventListener('click', (e) => e.preventDefault());
+      return;
+    }
+
     item.addEventListener('click', (e) => {
       e.preventDefault();
-      ui.menuItems.forEach(i => i.classList.remove('active'));
+      
+      // Remove active class from all menu items
+      allMenuItems.forEach(i => i.classList.remove('active'));
+      
+      // Add active class to the clicked item
       item.classList.add('active');
 
       const viewName = (item as HTMLElement).dataset.view;
+      if (!viewName) return;
+
+      // If the item is in a dropdown, also mark the parent as active
+      const parentDropdown = item.closest('.dropdown');
+      if (parentDropdown) {
+        parentDropdown.querySelector('.menu-item')?.classList.add('active');
+      }
+
       ui.views.forEach(view => {
         if (view.id === `${viewName}-view`) {
           view.classList.remove('hidden');
@@ -81,11 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
           view.classList.add('hidden');
         }
       });
-      if (viewName === 'features') {
-        const featuresView = document.getElementById('features-view');
-        if (featuresView) {
-          featuresView.classList.remove('hidden');
-        }
+
+      if (viewName === 'tabs') {
+        renderTabs();
       }
     });
   });
@@ -239,4 +256,108 @@ document.addEventListener('DOMContentLoaded', () => {
       ui.resultsList.appendChild(resultItem);
     }
   }
+  function renderTabs() {
+    chrome.tabs.query({}, (tabs) => {
+      const groupedTabs: { [domain: string]: chrome.tabs.Tab[] } = {};
+
+      tabs.forEach(tab => {
+        if (tab.url) {
+          try {
+            const domain = new URL(tab.url).hostname;
+            if (!groupedTabs[domain]) {
+              groupedTabs[domain] = [];
+            }
+            groupedTabs[domain].push(tab);
+          } catch (error) {
+            console.warn(`Could not parse URL for tab: ${tab.url}`, error);
+          }
+        }
+      });
+
+      ui.tabGroupsContainer.innerHTML = ''; // Clear previous content
+
+      for (const domain in groupedTabs) {
+        const group = groupedTabs[domain];
+        const groupElement = document.createElement('div');
+        groupElement.className = 'tab-group';
+
+        const header = document.createElement('div');
+        header.className = 'tab-group-header';
+
+        const favicon = document.createElement('img');
+        favicon.className = 'favicon';
+        favicon.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+        header.appendChild(favicon);
+
+        const domainName = document.createElement('span');
+        domainName.textContent = domain;
+        header.appendChild(domainName);
+
+        groupElement.appendChild(header);
+
+        const tabList = document.createElement('ul');
+        tabList.className = 'tab-list';
+
+        group.forEach(tab => {
+          const tabItem = document.createElement('li');
+          tabItem.className = 'tab-item';
+          tabItem.dataset.tabId = tab.id?.toString();
+
+          const tabFavicon = document.createElement('img');
+          tabFavicon.className = 'favicon';
+          if (tab.favIconUrl) {
+            tabFavicon.src = tab.favIconUrl;
+          } else {
+            // Fallback to Google's favicon service if not available
+            tabFavicon.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+          }
+          tabItem.appendChild(tabFavicon);
+
+          const tabTitle = document.createElement('span');
+          tabTitle.className = 'tab-item-title';
+          tabTitle.textContent = tab.title || 'Untitled Tab';
+          tabItem.appendChild(tabTitle);
+
+          tabItem.addEventListener('click', () => {
+            if (tab.id) {
+              chrome.tabs.update(tab.id, { active: true });
+              if (tab.windowId) {
+                chrome.windows.update(tab.windowId, { focused: true });
+              }
+            }
+          });
+
+          tabList.appendChild(tabItem);
+        });
+
+        groupElement.appendChild(tabList);
+        ui.tabGroupsContainer.appendChild(groupElement);
+      }
+    });
+  }
+  function isTabsViewActive() {
+    const tabsView = document.getElementById('tabs-view');
+    return tabsView && !tabsView.classList.contains('hidden');
+  }
+
+  chrome.tabs.onCreated.addListener(() => {
+    if (isTabsViewActive()) {
+      renderTabs();
+    }
+  });
+
+  chrome.tabs.onRemoved.addListener(() => {
+    if (isTabsViewActive()) {
+      renderTabs();
+    }
+  });
+
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    // We only care about URL or title changes
+    if (changeInfo.url || changeInfo.title) {
+      if (isTabsViewActive()) {
+        renderTabs();
+      }
+    }
+  });
 });

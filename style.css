@@ -49,6 +49,7 @@ body {
 
 .menu {
   display: flex;
+  align-items: center;
   gap: 15px;
 }
 
@@ -69,6 +70,39 @@ body {
   color: var(--menu-active);
   font-weight: bold;
   border-bottom: 3px solid var(--menu-active);
+}
+
+.dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: var(--header-bg);
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dropdown-content a {
+  color: var(--menu-text);
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  border-bottom: none;
+}
+
+.dropdown-content a:hover {
+  background-color: var(--background-color);
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
 }
 
 .container {
