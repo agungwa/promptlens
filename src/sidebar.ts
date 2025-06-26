@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     collapseAllBtn: getElement<HTMLButtonElement>('collapse-all-btn'),
     summaryPopover: getElement<HTMLElement>('summary-popover'),
     tabSearchInput: getElement<HTMLInputElement>('tab-search-input'),
+    bookmarkBar: getElement<HTMLElement>('bookmark-bar'),
   };
 
   // --- STATE ---
@@ -50,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let isQueueProcessing = false;
   let genAI: GoogleGenerativeAI | null = null;
   let allTabsCache: chrome.tabs.Tab[] = [];
+  let bookmarks: { title: string, url: string, favIconUrl: string }[] = [];
 
   const modelPricing: { [key: string]: { input: number, output: number } } = {
     'gemini-1.5-flash': { input: 0.0000025, output: 0.0000075 },
@@ -149,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tabItem = document.createElement('li');
         tabItem.className = 'tab-item';
         tabItem.dataset.tabId = tabId;
+        tabItem.draggable = true;
         
         tabItem.innerHTML = `
           <div class="tab-link">
@@ -315,9 +318,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function renderBookmarks() {
+    ui.bookmarkBar.innerHTML = '';
+    if (bookmarks.length === 0) {
+      ui.bookmarkBar.innerHTML = '<p class="bookmark-placeholder">Drag and drop tabs here to create a bookmark!</p>';
+      return;
+    }
+    bookmarks.forEach(bookmark => {
+      const bookmarkItem = document.createElement('img');
+      bookmarkItem.className = 'bookmark-item';
+      bookmarkItem.src = bookmark.favIconUrl;
+      bookmarkItem.title = bookmark.title;
+      bookmarkItem.addEventListener('click', () => {
+        chrome.tabs.create({ url: bookmark.url });
+      });
+      bookmarkItem.draggable = true;
+      bookmarkItem.dataset.url = bookmark.url;
+      ui.bookmarkBar.appendChild(bookmarkItem);
+    });
+  }
+
+  function saveBookmarks() {
+    chrome.storage.sync.set({ bookmarks });
+  }
+
   // --- INITIALIZATION & EVENT LISTENERS ---
 
-  chrome.storage.sync.get(['darkMode', 'aiModel', 'apiKey', 'customPrompt', 'defaultTool'], (data) => {
+  chrome.storage.sync.get(['darkMode', 'aiModel', 'apiKey', 'customPrompt', 'defaultTool', 'bookmarks'], (data) => {
     if (data.darkMode) {
       ui.body.classList.add('dark-mode');
       ui.darkModeToggle.checked = true;
@@ -332,8 +359,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ui.defaultToolSelect.value = data.defaultTool;
       setActiveView(data.defaultTool);
     } else {
-      // Default to Tab Manager on first install
       setActiveView('tabs');
+    }
+    if (data.bookmarks) {
+      bookmarks = data.bookmarks;
+      renderBookmarks();
     }
   });
 
@@ -384,13 +414,16 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
         chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, files: ['content.js'] }, () => {
+          if (chrome.runtime.lastError) {
+            console.error("Error injecting script:", chrome.runtime.lastError.message);
+            alert("Could not connect to the page. Please reload the tab and try again.");
+            ui.scrapeButton.classList.remove('hidden');
+            ui.stopButton.classList.add('hidden');
+            return;
+          }
           chrome.tabs.sendMessage(tabs[0].id!, { action: 'scrapeImages' }, (response) => {
             if (chrome.runtime.lastError) {
               console.error("Error messaging content script:", chrome.runtime.lastError.message);
-              // Optionally, inform the user that the page might need reloading
-              alert("Could not connect to the page. Please reload the tab and try again.");
-              ui.scrapeButton.classList.remove('hidden');
-              ui.stopButton.classList.add('hidden');
               return;
             }
             imageQueue = response;
@@ -418,6 +451,65 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.tabGroupsContainer.querySelectorAll('.tab-group').forEach(group => group.classList.add('collapsed'));
   });
 
+  ui.tabGroupsContainer.addEventListener('dragstart', (e) => {
+    const target = e.target as HTMLElement;
+    const tabItem = target.closest('.tab-item') as HTMLElement;
+    if (tabItem && tabItem.dataset.tabId) {
+      e.dataTransfer?.setData('text/plain', tabItem.dataset.tabId);
+    }
+  });
+
+  ui.bookmarkBar.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    ui.bookmarkBar.classList.add('drag-over');
+  });
+
+  ui.bookmarkBar.addEventListener('dragleave', () => {
+    ui.bookmarkBar.classList.remove('drag-over');
+  });
+
+  ui.bookmarkBar.addEventListener('drop', (e) => {
+    e.preventDefault();
+    ui.bookmarkBar.classList.remove('drag-over');
+    const tabId = e.dataTransfer?.getData('text/plain');
+    if (tabId) {
+      const tabDataMap = (ui.tabGroupsContainer as any)._tabDataMap as Map<string, chrome.tabs.Tab>;
+      const tab = tabDataMap.get(tabId);
+      if (tab && tab.url && bookmarks.length < 12) {
+        const newBookmark = {
+          title: tab.title || 'Untitled',
+          url: tab.url,
+          favIconUrl: tab.favIconUrl || `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}&sz=16`
+        };
+        if (!bookmarks.some(b => b.url === newBookmark.url)) {
+          bookmarks.push(newBookmark);
+          saveBookmarks();
+          renderBookmarks();
+        }
+      }
+    }
+  });
+
+  ui.bookmarkBar.addEventListener('dragstart', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('bookmark-item')) {
+      e.dataTransfer?.setData('text/plain', target.dataset.url || '');
+    }
+  });
+
+  ui.bookmarkBar.addEventListener('dragend', (e) => {
+    const target = e.target as HTMLElement;
+    // A simple way to check if the drop was outside the window
+    if (e.dataTransfer?.dropEffect === 'none' && target.classList.contains('bookmark-item')) {
+      const urlToRemove = target.dataset.url;
+      if (urlToRemove) {
+        bookmarks = bookmarks.filter(b => b.url !== urlToRemove);
+        saveBookmarks();
+        renderBookmarks();
+      }
+    }
+  });
+
   ui.tabGroupsContainer.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     const tabDataMap = (ui.tabGroupsContainer as any)._tabDataMap as Map<string, chrome.tabs.Tab>;
@@ -436,8 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const tabId = closeButton.getAttribute('data-tab-id');
       if (tabId) chrome.tabs.remove(parseInt(tabId, 10));
     } else if (tabLink) {
-      const tabItem = tabLink.closest('.tab-item');
-      const tabId = tabItem?.getAttribute('data-tab-id');
+      const tabItem = tabLink.closest('.tab-item') as HTMLElement;
+      const tabId = tabItem?.dataset.tabId;
       if (tabId && tabDataMap) {
         const tab = tabDataMap.get(tabId);
         if (tab && tab.id) {
@@ -453,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(searchTimeout);
     searchTimeout = window.setTimeout(() => {
       performSearch(ui.tabSearchInput.value);
-    }, 300); // Debounce search
+    }, 300);
   });
 
   function refreshTabs() {

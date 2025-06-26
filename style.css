@@ -105,6 +105,47 @@ body {
   display: block;
 }
 
+.bookmark-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 15px;
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 30px;
+}
+
+.bookmark-item {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+body.dark-mode .bookmark-item {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.bookmark-item:hover {
+  transform: scale(1.2);
+}
+
+.bookmark-item.drag-over {
+  border: 2px dashed var(--primary-color);
+  border-radius: 4px;
+}
+
+.bookmark-placeholder {
+  color: var(--menu-text);
+  font-size: 0.9em;
+  font-style: italic;
+}
+
 .container {
   flex-grow: 1;
   display: flex;
