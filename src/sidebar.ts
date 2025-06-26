@@ -383,8 +383,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
-        chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, files: ['dist/content.js'] }, () => {
+        chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, files: ['content.js'] }, () => {
           chrome.tabs.sendMessage(tabs[0].id!, { action: 'scrapeImages' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error("Error messaging content script:", chrome.runtime.lastError.message);
+              // Optionally, inform the user that the page might need reloading
+              alert("Could not connect to the page. Please reload the tab and try again.");
+              ui.scrapeButton.classList.remove('hidden');
+              ui.stopButton.classList.add('hidden');
+              return;
+            }
             imageQueue = response;
             totalImages = response.length;
             if (!isQueueProcessing) processQueue();
